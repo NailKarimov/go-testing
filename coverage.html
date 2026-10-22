@@ -1,0 +1,695 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>breaker: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">github.com/NailKarimov/go-testing/breaker/breaker.go (100.0%)</option>
+				
+				<option value="file1">github.com/NailKarimov/go-testing/chaos/chaos.go (96.4%)</option>
+				
+				<option value="file2">github.com/NailKarimov/go-testing/chaos/ctx.go (100.0%)</option>
+				
+				<option value="file3">github.com/NailKarimov/go-testing/inventory/inventory.go (100.0%)</option>
+				
+				<option value="file4">github.com/NailKarimov/go-testing/orders/orders.go (87.9%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">no coverage</span>
+				<span class="cov1">low coverage</span>
+				<span class="cov2">*</span>
+				<span class="cov3">*</span>
+				<span class="cov4">*</span>
+				<span class="cov5">*</span>
+				<span class="cov6">*</span>
+				<span class="cov7">*</span>
+				<span class="cov8">*</span>
+				<span class="cov9">*</span>
+				<span class="cov10">high coverage</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">// Package breaker is a small circuit breaker: after N failures in a row it stops calling a dependency for a
+// cool-down period and fails fast, then lets one trial call through (half-open) to see if it has recovered.
+package breaker
+
+import (
+        "errors"
+        "sync"
+        "time"
+)
+
+// ErrOpen is returned while the circuit is open: the call was not attempted.
+var ErrOpen = errors.New("circuit open")
+
+// State of the breaker.
+type State string
+
+const (
+        Closed   State = "closed"
+        Open     State = "open"
+        HalfOpen State = "half-open"
+)
+
+// Breaker counts consecutive failures. Now is replaceable so tests can move time instead of sleeping.
+type Breaker struct {
+        mu        sync.Mutex
+        threshold int
+        cooldown  time.Duration
+        failures  int
+        openedAt  time.Time
+        state     State
+        trial     bool
+        Now       func() time.Time
+}
+
+// New creates a breaker that opens after threshold consecutive failures and stays open for cooldown.
+func New(threshold int, cooldown time.Duration) *Breaker <span class="cov6" title="18">{
+        return &amp;Breaker{threshold: threshold, cooldown: cooldown, state: Closed, Now: time.Now}
+}</span>
+
+// State reports the current state.
+func (b *Breaker) State() State <span class="cov5" title="11">{
+        b.mu.Lock()
+        defer b.mu.Unlock()
+        b.advance()
+        return b.state
+}</span>
+
+func (b *Breaker) advance() <span class="cov10" title="81">{
+        if b.state == Open &amp;&amp; b.Now().Sub(b.openedAt) &gt;= b.cooldown </span><span class="cov3" title="4">{
+                b.state = HalfOpen
+                b.trial = false
+        }</span>
+}
+
+// Do runs fn unless the circuit is open. In half-open state only one trial call runs at a time.
+func (b *Breaker) Do(fn func() error) error <span class="cov9" title="70">{
+        b.mu.Lock()
+        b.advance()
+        switch </span>{
+        case b.state == Open:<span class="cov2" title="2">
+                b.mu.Unlock()
+                return ErrOpen</span>
+        case b.state == HalfOpen &amp;&amp; b.trial:<span class="cov1" title="1">
+                b.mu.Unlock()
+                return ErrOpen</span>
+        case b.state == HalfOpen:<span class="cov3" title="4">
+                b.trial = true</span>
+        }
+        <span class="cov9" title="67">b.mu.Unlock()
+
+        err := fn()
+
+        b.mu.Lock()
+        defer b.mu.Unlock()
+        if err == nil </span><span class="cov8" title="40">{
+                b.failures = 0
+                b.state = Closed
+                b.trial = false
+                return nil
+        }</span>
+        <span class="cov7" title="27">b.failures++
+        if b.state == HalfOpen || b.failures &gt;= b.threshold </span><span class="cov4" title="7">{
+                b.state = Open
+                b.openedAt = b.Now()
+                b.trial = false
+        }</span>
+        <span class="cov7" title="27">return err</span>
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">// Package chaos is a fault-injecting reverse proxy. It sits between two services and, per request, can add
+// latency, answer 500, cut the connection, or swallow the request (black hole) — the faults a real network gives.
+//
+// Faults are set from the test through Set, so one scenario can switch them on and off mid-flight.
+package chaos
+
+import (
+        "io"
+        "net/http"
+        "net/http/httputil"
+        "net/url"
+        "sync"
+        "sync/atomic"
+        "time"
+)
+
+// Fault describes what the proxy does to the next requests.
+type Fault struct {
+        Latency   time.Duration // added before forwarding
+        SlowFor   int           // if &gt; 0, latency applies only to the next N requests
+        Error500  int           // answer the next N requests with 500 without forwarding
+        Reset     int           // forward the next N requests, then drop the connection before the response
+        BlackHole bool          // never answer (until the client gives up)
+        Down      bool          // refuse every request with a connection drop, as if the service were gone
+}
+
+// Proxy is the fault injector.
+type Proxy struct {
+        mu      sync.Mutex
+        fault   Fault
+        target  *httputil.ReverseProxy
+        Seen    atomic.Int64 // requests that reached the proxy
+        Dropped atomic.Int64 // requests answered by a fault instead of the target
+}
+
+// New creates a proxy in front of target.
+func New(target string) *Proxy <span class="cov6" title="12">{
+        u, err := url.Parse(target)
+        if err != nil </span><span class="cov0" title="0">{
+                panic(err)</span>
+        }
+        <span class="cov6" title="12">return &amp;Proxy{target: httputil.NewSingleHostReverseProxy(u)}</span>
+}
+
+// Set replaces the current fault.
+func (p *Proxy) Set(f Fault) <span class="cov5" title="8">{
+        p.mu.Lock()
+        p.fault = f
+        p.mu.Unlock()
+}</span>
+
+// take decides the fault for one request and consumes counters.
+func (p *Proxy) take() (latency time.Duration, err500, reset, hole, down bool) <span class="cov10" title="74">{
+        p.mu.Lock()
+        defer p.mu.Unlock()
+        f := &amp;p.fault
+        latency, hole, down = f.Latency, f.BlackHole, f.Down
+        if f.SlowFor &gt; 0 </span><span class="cov1" title="1">{
+                f.SlowFor--
+                if f.SlowFor == 0 </span><span class="cov1" title="1">{
+                        f.Latency = 0
+                }</span>
+        }
+        <span class="cov10" title="74">if f.Error500 &gt; 0 </span><span class="cov6" title="11">{
+                f.Error500--
+                err500 = true
+        }</span> else<span class="cov9" title="63"> if f.Reset &gt; 0 </span><span class="cov5" title="7">{
+                f.Reset--
+                reset = true
+        }</span>
+        <span class="cov10" title="74">return</span>
+}
+
+func hijackClose(w http.ResponseWriter) <span class="cov7" title="22">{
+        if hj, ok := w.(http.Hijacker); ok </span><span class="cov7" title="22">{
+                if conn, _, err := hj.Hijack(); err == nil </span><span class="cov7" title="22">{
+                        _ = conn.Close()
+                        return
+                }</span>
+        }
+        <span class="cov0" title="0">panic(http.ErrAbortHandler)</span>
+}
+
+// ServeHTTP applies the fault, then forwards.
+func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) <span class="cov10" title="74">{
+        p.Seen.Add(1)
+        latency, err500, reset, hole, down := p.take()
+        if down </span><span class="cov6" title="15">{
+                p.Dropped.Add(1)
+                hijackClose(w)
+                return
+        }</span>
+        <span class="cov9" title="59">if hole </span><span class="cov3" title="3">{
+                p.Dropped.Add(1)
+                // Read the body first: the server only notices the client hanging up once the body is consumed.
+                _, _ = io.Copy(io.Discard, r.Body)
+                select </span>{
+                case &lt;-r.Context().Done():<span class="cov3" title="3"></span>
+                case &lt;-time.After(time.Minute):<span class="cov0" title="0"></span>
+                }
+                <span class="cov3" title="3">return</span>
+        }
+        <span class="cov9" title="56">if latency &gt; 0 </span><span class="cov1" title="1">{
+                select </span>{
+                case &lt;-time.After(latency):<span class="cov1" title="1"></span>
+                case &lt;-r.Context().Done():<span class="cov0" title="0"></span>
+                        // The client gave up. The request is still forwarded, the way a slow network still delivers it:
+                        // that is what makes a retry after a timeout dangerous without an idempotency key.
+                }
+        }
+        <span class="cov9" title="56">if err500 </span><span class="cov6" title="11">{
+                p.Dropped.Add(1)
+                w.Header().Set("Content-Type", "application/json")
+                w.WriteHeader(http.StatusInternalServerError)
+                _, _ = w.Write([]byte(`{"error":"injected"}`))
+                return
+        }</span>
+        <span class="cov8" title="45">if reset </span><span class="cov5" title="7">{
+                // Forward for real (the reservation happens), then drop the connection instead of the response.
+                p.Dropped.Add(1)
+                rec := &amp;discard{header: http.Header{}}
+                p.target.ServeHTTP(rec, r.Clone(contextWithoutCancel(r)))
+                hijackClose(w)
+                return
+        }</span>
+        <span class="cov8" title="38">p.target.ServeHTTP(w, r.Clone(contextWithoutCancel(r)))</span>
+}
+
+type discard struct{ header http.Header }
+
+func (d *discard) Header() http.Header         <span class="cov6" title="14">{ return d.header }</span>
+func (d *discard) Write(b []byte) (int, error) <span class="cov5" title="7">{ return len(b), nil }</span>
+func (d *discard) WriteHeader(int)             {<span class="cov5" title="7">}</span>
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">package chaos
+
+import (
+        "context"
+        "net/http"
+)
+
+func contextWithoutCancel(r *http.Request) context.Context <span class="cov10" title="45">{ return context.WithoutCancel(r.Context()) }</span>
+</pre>
+		
+		<pre class="file" id="file3" style="display: none">// Package inventory is a stock service: it holds how many units of each SKU are left and reserves them.
+//
+// A reservation carries an Idempotency-Key. Sending the same key again returns the first result instead of
+// reserving twice, which is what makes it safe for the orders service to retry after a timeout.
+package inventory
+
+import (
+        "bytes"
+        "encoding/json"
+        "errors"
+        "io"
+        "net/http"
+        "strings"
+        "sync"
+)
+
+// Reservation is the body of POST /reservations.
+type Reservation struct {
+        SKU      string `json:"sku"`
+        Quantity int    `json:"quantity"`
+}
+
+// Validate checks a reservation before it touches the stock.
+func (r Reservation) Validate() error <span class="cov9" title="128">{
+        switch </span>{
+        case strings.TrimSpace(r.SKU) == "" || len(r.SKU) &gt; 32:<span class="cov3" title="4">
+                return errors.New("sku must be 1-32 characters")</span>
+        case r.Quantity &lt; 1 || r.Quantity &gt; 100:<span class="cov3" title="4">
+                return errors.New("quantity must be 1-100")</span>
+        }
+        <span class="cov9" title="120">return nil</span>
+}
+
+// ParseReservation decodes and validates a request body. Unknown fields and trailing data are rejected.
+func ParseReservation(body []byte) (Reservation, error) <span class="cov10" title="132">{
+        var r Reservation
+        dec := json.NewDecoder(bytes.NewReader(body))
+        dec.DisallowUnknownFields()
+        if err := dec.Decode(&amp;r); err != nil </span><span class="cov4" title="6">{
+                return Reservation{}, errors.New("invalid JSON: " + err.Error())
+        }</span>
+        <span class="cov9" title="126">if dec.More() </span><span class="cov2" title="2">{
+                return Reservation{}, errors.New("invalid JSON: trailing data")
+        }</span>
+        <span class="cov9" title="124">return r, r.Validate()</span>
+}
+
+type result struct {
+        status int
+        body   any
+}
+
+// Store is the inventory: stock per SKU and the results of reservations already made, by idempotency key.
+type Store struct {
+        mu       sync.Mutex
+        stock    map[string]int
+        seen     map[string]result
+        Reserved int // total units reserved, for tests that count side effects
+        Requests int // reservation requests received, including repeats
+}
+
+// NewStore creates a store with the given stock.
+func NewStore(stock map[string]int) *Store <span class="cov7" title="33">{
+        s := &amp;Store{stock: map[string]int{}, seen: map[string]result{}}
+        for k, v := range stock </span><span class="cov8" title="54">{
+                s.stock[k] = v
+        }</span>
+        <span class="cov7" title="33">return s</span>
+}
+
+// Stock returns the units left for a SKU and whether the SKU exists.
+func (s *Store) Stock(sku string) (int, bool) <span class="cov5" title="13">{
+        s.mu.Lock()
+        defer s.mu.Unlock()
+        n, ok := s.stock[sku]
+        return n, ok
+}</span>
+
+// Reserve takes units out of stock, at most once per idempotency key.
+func (s *Store) Reserve(key string, r Reservation) (int, any) <span class="cov9" title="108">{
+        s.mu.Lock()
+        defer s.mu.Unlock()
+        s.Requests++
+        if prev, ok := s.seen[key]; ok &amp;&amp; key != "" </span><span class="cov5" title="11">{
+                return prev.status, prev.body
+        }</span>
+        <span class="cov9" title="97">var res result
+        n, ok := s.stock[r.SKU]
+        switch </span>{
+        case !ok:<span class="cov2" title="2">
+                res = result{http.StatusNotFound, map[string]string{"error": "unknown sku"}}</span>
+        case n &lt; r.Quantity:<span class="cov8" title="64">
+                res = result{http.StatusConflict, map[string]any{"error": "not enough stock", "available": n}}</span>
+        default:<span class="cov7" title="31">
+                s.stock[r.SKU] = n - r.Quantity
+                s.Reserved += r.Quantity
+                res = result{http.StatusCreated, map[string]any{"sku": r.SKU, "quantity": r.Quantity, "left": n - r.Quantity}}</span>
+        }
+        <span class="cov9" title="97">if key != "" </span><span class="cov9" title="92">{
+                s.seen[key] = res
+        }</span>
+        <span class="cov9" title="97">return res.status, res.body</span>
+}
+
+// Handler serves GET /items/{sku} and POST /reservations.
+func (s *Store) Handler() http.Handler <span class="cov7" title="33">{
+        mux := http.NewServeMux()
+        mux.HandleFunc("GET /items/{sku}", func(w http.ResponseWriter, r *http.Request) </span><span class="cov3" title="3">{
+                n, ok := s.Stock(r.PathValue("sku"))
+                if !ok </span><span class="cov1" title="1">{
+                        writeJSON(w, http.StatusNotFound, map[string]string{"error": "unknown sku"})
+                        return
+                }</span>
+                <span class="cov2" title="2">writeJSON(w, http.StatusOK, map[string]any{"sku": r.PathValue("sku"), "stock": n})</span>
+        })
+        <span class="cov7" title="33">mux.HandleFunc("POST /reservations", func(w http.ResponseWriter, r *http.Request) </span><span class="cov9" title="119">{
+                body, _ := io.ReadAll(io.LimitReader(r.Body, 4097))
+                if len(body) &gt; 4096 </span><span class="cov1" title="1">{
+                        writeJSON(w, http.StatusRequestEntityTooLarge, map[string]string{"error": "body too large"})
+                        return
+                }</span>
+                <span class="cov9" title="118">res, err := ParseReservation(body)
+                if err != nil </span><span class="cov5" title="10">{
+                        writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+                        return
+                }</span>
+                <span class="cov9" title="108">status, out := s.Reserve(r.Header.Get("Idempotency-Key"), res)
+                writeJSON(w, status, out)</span>
+        })
+        <span class="cov7" title="33">return mux</span>
+}
+
+func writeJSON(w http.ResponseWriter, status int, v any) <span class="cov9" title="122">{
+        w.Header().Set("Content-Type", "application/json")
+        w.WriteHeader(status)
+        _ = json.NewEncoder(w).Encode(v)
+}</span>
+</pre>
+		
+		<pre class="file" id="file4" style="display: none">// Package orders is the front service: POST /orders reserves stock in the inventory service and records the order.
+//
+// The call to inventory is where things go wrong in a distributed system, so it is wrapped in three defences:
+//   - a timeout per attempt, so a slow inventory cannot hang the order;
+//   - retries with backoff for timeouts, resets and 5xx, all with the same Idempotency-Key, so a retry after a lost
+//     response never reserves twice;
+//   - a circuit breaker, so when inventory is down orders fail fast with 503 instead of piling up.
+package orders
+
+import (
+        "bytes"
+        "context"
+        "encoding/json"
+        "errors"
+        "fmt"
+        "io"
+        "net/http"
+        "strconv"
+        "sync"
+        "sync/atomic"
+        "time"
+
+        "github.com/NailKarimov/go-testing/breaker"
+)
+
+// Config tunes the client side of the inventory call.
+type Config struct {
+        InventoryURL string
+        Timeout      time.Duration // per attempt
+        Attempts     int           // first try + retries
+        Backoff      time.Duration // doubled after each retry
+        Breaker      *breaker.Breaker
+        Client       *http.Client
+}
+
+// Order is what the service stores and returns.
+type Order struct {
+        ID       int    `json:"id"`
+        SKU      string `json:"sku"`
+        Quantity int    `json:"quantity"`
+        Status   string `json:"status"`
+}
+
+// Service is the orders service.
+type Service struct {
+        cfg    Config
+        mu     sync.Mutex
+        orders []Order
+        nextID atomic.Int64
+        // Attempts counts calls made to inventory, for tests that check retry behaviour.
+        Attempts atomic.Int64
+}
+
+// New creates the service with defaults for anything left empty.
+func New(cfg Config) *Service <span class="cov6" title="12">{
+        if cfg.Timeout == 0 </span><span class="cov0" title="0">{
+                cfg.Timeout = 300 * time.Millisecond
+        }</span>
+        <span class="cov6" title="12">if cfg.Attempts == 0 </span><span class="cov0" title="0">{
+                cfg.Attempts = 3
+        }</span>
+        <span class="cov6" title="12">if cfg.Backoff == 0 </span><span class="cov0" title="0">{
+                cfg.Backoff = 20 * time.Millisecond
+        }</span>
+        <span class="cov6" title="12">if cfg.Breaker == nil </span><span class="cov0" title="0">{
+                cfg.Breaker = breaker.New(5, 2*time.Second)
+        }</span>
+        <span class="cov6" title="12">if cfg.Client == nil </span><span class="cov6" title="12">{
+                cfg.Client = &amp;http.Client{}
+        }</span>
+        <span class="cov6" title="12">return &amp;Service{cfg: cfg}</span>
+}
+
+// errRetryable marks failures worth another attempt: timeouts, resets, 5xx.
+type errRetryable struct{ cause error }
+
+func (e errRetryable) Error() string <span class="cov5" title="7">{ return e.cause.Error() }</span>
+
+// reply is a final answer from inventory: 201 created, 404 or 409 are business answers, not failures.
+type reply struct {
+        status int
+        body   map[string]any
+}
+
+func (s *Service) reserveOnce(ctx context.Context, key string, payload []byte) (reply, error) <span class="cov10" title="72">{
+        s.Attempts.Add(1)
+        ctx, cancel := context.WithTimeout(ctx, s.cfg.Timeout)
+        defer cancel()
+        req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.cfg.InventoryURL+"/reservations", bytes.NewReader(payload))
+        if err != nil </span><span class="cov0" title="0">{
+                return reply{}, err
+        }</span>
+        <span class="cov10" title="72">req.Header.Set("Content-Type", "application/json")
+        req.Header.Set("Idempotency-Key", key)
+        resp, err := s.cfg.Client.Do(req)
+        if err != nil </span><span class="cov7" title="24">{
+                return reply{}, errRetryable{err}
+        }</span>
+        <span class="cov9" title="48">defer func() </span><span class="cov9" title="48">{ _ = resp.Body.Close() }</span>()
+        <span class="cov9" title="48">raw, err := io.ReadAll(io.LimitReader(resp.Body, 1&lt;&lt;16))
+        if err != nil </span><span class="cov0" title="0">{
+                return reply{}, errRetryable{err} // connection dropped mid-body
+        }</span>
+        <span class="cov9" title="48">if resp.StatusCode &gt;= 500 </span><span class="cov6" title="11">{
+                return reply{}, errRetryable{fmt.Errorf("inventory answered %d", resp.StatusCode)}
+        }</span>
+        <span class="cov8" title="37">var body map[string]any
+        if err := json.Unmarshal(raw, &amp;body); err != nil </span><span class="cov0" title="0">{
+                return reply{}, errRetryable{fmt.Errorf("inventory sent invalid JSON: %w", err)}
+        }</span>
+        <span class="cov8" title="37">return reply{resp.StatusCode, body}, nil</span>
+}
+
+// reserve calls inventory through the breaker with retries. Every attempt carries the same idempotency key.
+func (s *Service) reserve(ctx context.Context, key string, payload []byte) (reply, error) <span class="cov9" title="45">{
+        var out reply
+        err := s.cfg.Breaker.Do(func() error </span><span class="cov8" title="44">{
+                wait := s.cfg.Backoff
+                var last error
+                for i := 0; i &lt; s.cfg.Attempts; i++ </span><span class="cov10" title="72">{
+                        if i &gt; 0 </span><span class="cov8" title="28">{
+                                select </span>{
+                                case &lt;-time.After(wait):<span class="cov8" title="28"></span>
+                                case &lt;-ctx.Done():<span class="cov0" title="0">
+                                        return ctx.Err()</span>
+                                }
+                                <span class="cov8" title="28">wait *= 2</span>
+                        }
+                        <span class="cov10" title="72">r, err := s.reserveOnce(ctx, key, payload)
+                        if err == nil </span><span class="cov8" title="37">{
+                                out = r
+                                return nil
+                        }</span>
+                        <span class="cov8" title="35">last = err
+                        var re errRetryable
+                        if !errors.As(err, &amp;re) </span><span class="cov0" title="0">{
+                                return err
+                        }</span>
+                }
+                <span class="cov5" title="7">return last</span>
+        })
+        <span class="cov9" title="45">return out, err</span>
+}
+
+// Handler serves POST /orders and GET /orders.
+func (s *Service) Handler() http.Handler <span class="cov6" title="12">{
+        mux := http.NewServeMux()
+        mux.HandleFunc("POST /orders", func(w http.ResponseWriter, r *http.Request) </span><span class="cov9" title="49">{
+                var in struct {
+                        SKU      string `json:"sku"`
+                        Quantity int    `json:"quantity"`
+                }
+                dec := json.NewDecoder(io.LimitReader(r.Body, 4096))
+                dec.DisallowUnknownFields()
+                if err := dec.Decode(&amp;in); err != nil || in.SKU == "" || in.Quantity &lt; 1 || in.Quantity &gt; 100 </span><span class="cov3" title="4">{
+                        writeJSON(w, http.StatusBadRequest, map[string]string{"error": "sku and quantity 1-100 are required"})
+                        return
+                }</span>
+                <span class="cov9" title="45">id := int(s.nextID.Add(1))
+                payload, _ := json.Marshal(in)
+                res, err := s.reserve(r.Context(), "order-"+strconv.Itoa(id), payload)
+                switch </span>{
+                case errors.Is(err, breaker.ErrOpen):<span class="cov1" title="1">
+                        w.Header().Set("Retry-After", "2")
+                        writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "inventory unavailable (circuit open)"})
+                        return</span>
+                case err != nil:<span class="cov5" title="7">
+                        writeJSON(w, http.StatusBadGateway, map[string]string{"error": "inventory failed: " + err.Error()})
+                        return</span>
+                case res.status == http.StatusNotFound:<span class="cov1" title="1">
+                        writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"error": "unknown sku"})
+                        return</span>
+                case res.status == http.StatusConflict:<span class="cov7" title="21">
+                        writeJSON(w, http.StatusConflict, map[string]any{"error": "out of stock", "available": res.body["available"]})
+                        return</span>
+                case res.status != http.StatusCreated:<span class="cov0" title="0">
+                        writeJSON(w, http.StatusBadGateway, map[string]string{"error": fmt.Sprintf("unexpected inventory status %d", res.status)})
+                        return</span>
+                }
+                <span class="cov6" title="15">o := Order{ID: id, SKU: in.SKU, Quantity: in.Quantity, Status: "confirmed"}
+                s.mu.Lock()
+                s.orders = append(s.orders, o)
+                s.mu.Unlock()
+                writeJSON(w, http.StatusCreated, o)</span>
+        })
+        <span class="cov6" title="12">mux.HandleFunc("GET /orders", func(w http.ResponseWriter, _ *http.Request) </span><span class="cov1" title="1">{
+                s.mu.Lock()
+                defer s.mu.Unlock()
+                writeJSON(w, http.StatusOK, append([]Order{}, s.orders...))
+        }</span>)
+        <span class="cov6" title="12">mux.HandleFunc("GET /health", func(w http.ResponseWriter, _ *http.Request) </span><span class="cov1" title="1">{
+                writeJSON(w, http.StatusOK, map[string]string{"breaker": string(s.cfg.Breaker.State())})
+        }</span>)
+        <span class="cov6" title="12">return mux</span>
+}
+
+func writeJSON(w http.ResponseWriter, status int, v any) <span class="cov9" title="51">{
+        w.Header().Set("Content-Type", "application/json")
+        w.WriteHeader(status)
+        _ = json.NewEncoder(w).Encode(v)
+}</span>
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="en" data-default-lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Go resilience tests</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Public+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<style>
+/* Layout: a fault switchboard. Pick a network fault and see attempts, what the user gets and what inventory did;
+   a circuit breaker to drive by hand; the mutant table; commands. */
+:root {
+  --bg: #eef0f4; --surface: #ffffff; --sunken: #e2e6ee; --ink: #141720; --muted: #5a6070; --line: #cfd4df;
+  --accent: #00758f; --accent-soft: #d6eef3; --px: #0f6b73; --px-soft: #d5eeee;
+  --ok: #17784b; --ok-soft: #d8f1e3; --bad: #b42318; --bad-soft: #fbe1dd; --warn: #8a6100; --warn-soft: #f7ebc8;
+  --font-display: 'Bricolage Grotesque', 'Public Sans', system-ui, sans-serif;
+  --font-body: 'Public Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #101219; --surface: #181b24; --sunken: #20242f; --ink: #e8eaf1; --muted: #a0a6b5; --line: #2e3341;
+    --accent: #5ed0e8; --accent-soft: #0d2d36; --px: #6fd3db; --px-soft: #0f3134;
+    --ok: #62d49a; --ok-soft: #12321f; --bad: #ff8a7d; --bad-soft: #3d1714; --warn: #f1c35a; --warn-soft: #3a2d0c;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #101219; --surface: #181b24; --sunken: #20242f; --ink: #e8eaf1; --muted: #a0a6b5; --line: #2e3341;
+  --accent: #5ed0e8; --accent-soft: #0d2d36; --px: #6fd3db; --px-soft: #0f3134;
+  --ok: #62d49a; --ok-soft: #12321f; --bad: #ff8a7d; --bad-soft: #3d1714; --warn: #f1c35a; --warn-soft: #3a2d0c;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 400 16px/1.6 var(--font-body); margin: 0; }
+body[data-lang="ru"] [lang="en"], body[data-lang="en"] [lang="ru"] { display: none !important; }
+.wrap { max-width: 1080px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 0 64px; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; line-height: 1.1; margin: 0; }
+h1 { font-size: clamp(30px, 5vw, 50px); font-weight: 800; letter-spacing: -0.02em; }
+h2 { font-size: clamp(22px, 2.8vw, 30px); font-weight: 800; letter-spacing: -0.01em; }
+h3 { font-size: 16px; font-weight: 600; }
+p { margin: 0; max-width: 70ch; }
+code, .mono { font-family: var(--font-mono); font-size: 0.86em; }
+a { color: var(--accent); }
+button { font-family: var(--font-body); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+.eyebrow { font: 500 12px/1 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.muted { color: var(--muted); }
+header.top { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding-block: 20px; flex-wrap: wrap; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+.seg button { font: 500 13px var(--font-mono); background: transparent; color: var(--muted); border: 0; padding: 6px 14px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.hero { display: grid; gap: 16px; padding-block: 8px; }
+.hero .lead { font-size: 18px; color: var(--muted); }
+.facts { display: flex; flex-wrap: wrap; gap: 8px 24px; font-size: 14px; color: var(--muted); }
+.facts b { font: 800 24px var(--font-display); color: var(--ink); margin-right: 6px; font-variant-numeric: tabular-nums; }
+section.station { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; padding-block: 52px 0; }
+section.station > header { display: grid; gap: 8px; }
+.num { font: 700 13px var(--font-mono); color: var(--accent); }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chips button { font: 500 13.5px var(--font-body); border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+.chips button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+@media (max-width: 780px) { .two { grid-template-columns: minmax(0, 1fr); } }
+pre.code { margin: 0; background: var(--sunken); border-radius: 8px; padding: 10px 12px; font: 400 12.5px/1.55 var(--font-mono); overflow-x: auto; white-space: pre; }
+.tag { font: 600 11px var(--font-mono); padding: 2px 7px; border-radius: 4px; display: inline-block; white-space: nowrap; }
+.tag.ok { background: var(--ok-soft); color: var(--ok); } .tag.bad { background: var(--bad-soft); color: var(--bad); }
+.tag.warn { background: var(--warn-soft); color: var(--warn); } .tag.ac { background: var(--accent-soft); color: var(--accent); }
+.tag.px { background: var(--px-soft); color: var(--px); }
+.state { border-radius: 12px; padding: 14px; display: grid; gap: 4px; font-size: 15px; }
+.state.ok { background: var(--ok-soft); } .state.bad { background: var(--bad-soft); } .state.warn { background: var(--warn-soft); }
+.state b { font-family: var(--font-display); font-size: 19px; }
+
+.ctl { display: grid; gap: 12px; }
+.ctl label { display: grid; gap: 4px; font-size: 13.5px; color: var(--muted); }
+.ctl input { font: 500 15px var(--font-mono); padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+.kv { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 12px; font-size: 14.5px; align-items: baseline; }
+.kv b { font: 700 15px var(--font-mono); text-align: right; font-variant-numeric: tabular-nums; }
+.list { display: grid; gap: 6px; grid-template-columns: minmax(0, 1fr); }
+.item { display: grid; grid-template-columns: 130px minmax(0, 1.3fr) minmax(0, 1fr); gap: 12px; align-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; font-size: 14.5px; }
+@media (max-width: 760px) { .item { grid-template-columns: minmax(0, 1fr); gap: 4px; } }
+.item code { overflow-wrap: anywhere; }
+.lanes { display: grid; gap: 8px; }
+.lane { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 10px; align-items: center; font-size: 13.5px; }
+.lane .track { display: flex; gap: 4px; flex-wrap: wrap; }
+.lane .track span { font: 600 11.5px var(--font-mono); padding: 5px 8px; border-radius: 6px; background: var(--sunken); }
+.lane .track span.w { background: var(--warn-soft); color: var(--warn); }
+.lane .track span.bad { background: var(--bad-soft); color: var(--bad); }
+.lane .track span.ok { background: var(--ok-soft); color: var(--ok); }
+dl.terms { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0; }
+@media (max-width: 760px) { dl.terms { grid-template-columns: minmax(0, 1fr); } }
+dl.terms div { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; }
+dt { font: 700 13.5px var(--font-mono); } dd { margin: 4px 0 0; font-size: 14.5px; color: var(--muted); }
+.cmds { display: grid; gap: 6px; grid-template-columns: minmax(0, 1fr); }
+.cmd { display: flex; gap: 8px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 8px 8px 14px; min-width: 0; }
+.cmd code { flex: 1; overflow-x: auto; white-space: nowrap; }
+.cmd button { font: 600 12px var(--font-mono); border: 1px solid var(--line); background: var(--sunken); color: var(--ink); border-radius: 6px; padding: 6px 10px; cursor: pointer; }
+footer { padding-top: 48px; font-size: 14px; color: var(--muted); }
+.bk { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.bk button { font: 600 13px var(--font-mono); border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 8px; padding: 8px 12px; cursor: pointer; }
+.fsm { display: flex; gap: 8px; flex-wrap: wrap; }
+.fsm span { font: 700 13px var(--font-mono); padding: 8px 14px; border-radius: 999px; border: 1px dashed var(--line); color: var(--muted); }
+.fsm span.on.closed { background: var(--ok-soft); color: var(--ok); border-style: solid; border-color: var(--ok); }
+.fsm span.on.open { background: var(--bad-soft); color: var(--bad); border-style: solid; border-color: var(--bad); }
+.fsm span.on.half { background: var(--warn-soft); color: var(--warn); border-style: solid; border-color: var(--warn); }
+.log { font: 400 12.5px/1.6 var(--font-mono); background: var(--sunken); border-radius: 8px; padding: 10px 12px; max-height: 190px; overflow-y: auto; margin: 0; white-space: pre-wrap; }
+.switch { display: inline-flex; gap: 8px; align-items: center; font-size: 14px; }
+</style>
+</head>
+<body data-lang="ru">
+<div class="wrap">
+  <header class="top">
+    <span class="eyebrow">go-testing · httptest · -race · fuzzing · chaos proxy</span>
+    <div class="seg" role="group" aria-label="Language">
+      <button type="button" id="lang-ru" data-l="ru" aria-pressed="true">RU</button>
+      <button type="button" id="lang-en" data-l="en" aria-pressed="false">EN</button>
+    </div>
+  </header>
+
+  <section class="hero">
+    <h1 lang="ru">Тесты на Go: когда сеть подводит</h1>
+    <h1 lang="en">Testing in Go: when the network lets you down</h1>
+    <p class="lead" lang="ru">Два своих сервиса на стандартной библиотеке: orders вызывает inventory по HTTP через прокси, который вносит сбои — задержку, 500, обрыв соединения, «чёрную дыру». Тесты проверяют и то, что увидел пользователь, и то, что на самом деле произошло на складе.</p>
+    <p class="lead" lang="en">Two services of our own on the standard library: orders calls inventory over HTTP through a proxy that injects faults: latency, 500s, dropped connections, a black hole. The tests check what the user saw and what really happened in inventory.</p>
+    <div class="facts">
+      <span><b>25</b><span lang="ru">тестов + 18 табличных случаев</span><span lang="en">tests + 18 table cases</span></span>
+      <span><b>7</b><span lang="ru">сценариев сбоев</span><span lang="en">fault scenarios</span></span>
+      <span><b>94.5 %</b><span lang="ru">покрытие четырёх пакетов</span><span lang="en">coverage of four packages</span></span>
+      <span><b>14/14</b><span lang="ru">посаженных багов пойманы</span><span lang="en">planted bugs caught</span></span>
+    </div>
+  </section>
+
+  <section class="station" aria-labelledby="p1">
+    <header>
+      <span class="num">01</span>
+      <h2 id="p1" lang="ru">Пульт сбоев</h2><h2 lang="en">The fault switchboard</h2>
+      <p class="muted" lang="ru">Выберите сбой, который прокси внесёт между сервисами. Таймаут попытки 150 мс, попыток 3. Переключатель ниже убирает Idempotency-Key — это посаженный баг M1: пользователь всё так же получает 201, но склад списывает дважды.</p>
+      <p class="muted" lang="en">Pick the fault the proxy injects between the services. Timeout per attempt 150 ms, 3 attempts. The switch below drops the Idempotency-Key: planted bug M1. The user still gets 201, but inventory reserves twice.</p>
+    </header>
+    <div class="chips" id="fault-chips" role="group" aria-label="Fault"></div>
+    <label class="switch"><input type="checkbox" id="nokey"><span lang="ru">Без Idempotency-Key (M1)</span><span lang="en">Without Idempotency-Key (M1)</span></label>
+    <div class="two">
+      <div class="panel"><div class="lanes" id="lanes"></div></div>
+      <div class="panel" id="outcome" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <section class="station" aria-labelledby="p2">
+    <header>
+      <span class="num">02</span>
+      <h2 id="p2" lang="ru">Автомат-предохранитель своими руками</h2><h2 lang="en">Drive the circuit breaker</h2>
+      <p class="muted" lang="ru">Порог — 5 неудач подряд, пауза — 30 с. В тестах время двигает поддельные часы, поэтому тест на «через 30 секунд» идёт миллисекунды. Нажимайте кнопки.</p>
+      <p class="muted" lang="en">Threshold: 5 failures in a row; cool-down: 30 s. In the tests a fake clock moves time, so "after 30 seconds" takes milliseconds. Press the buttons.</p>
+    </header>
+    <div class="two">
+      <div class="panel">
+        <div class="fsm" id="fsm"><span data-s="closed">closed</span><span data-s="open">open</span><span data-s="half">half-open</span></div>
+        <div class="kv" id="bk-kv"></div>
+        <div class="bk">
+          <button type="button" data-a="fail" id="b-fail"></button>
+          <button type="button" data-a="ok" id="b-ok"></button>
+          <button type="button" data-a="tick" id="b-tick"></button>
+          <button type="button" data-a="reset" id="b-reset"></button>
+        </div>
+      </div>
+      <pre class="log" id="bk-log" aria-live="polite"></pre>
+    </div>
+  </section>
+
+  <section class="station" aria-labelledby="p3">
+    <header>
+      <span class="num">03</span>
+      <h2 id="p3" lang="ru">Посаженные баги</h2><h2 lang="en">Planted bugs</h2>
+      <p class="muted" lang="ru"><code>go run scripts/mutants.go</code> сажает по одному багу и запускает <code>go test -race ./...</code>.</p>
+      <p class="muted" lang="en"><code>go run scripts/mutants.go</code> plants one bug at a time and runs <code>go test -race ./...</code>.</p>
+    </header>
+    <div class="list" id="mut"></div>
+  </section>
+
+  <section class="station" aria-labelledby="p4">
+    <header><span class="num">04</span><h2 id="p4" lang="ru">Словарь и команды</h2><h2 lang="en">Terms and commands</h2></header>
+    <dl class="terms" id="terms"></dl>
+    <div class="cmds" id="cmds"></div>
+  </section>
+
+  <footer>
+    <span lang="ru">Код: <a href="https://github.com/NailKarimov/go-testing">github.com/NailKarimov/go-testing</a> · текстом: <code>docs/go.md</code> · <a href="coverage.html">отчёт о покрытии</a>.</span>
+    <span lang="en">Code: <a href="https://github.com/NailKarimov/go-testing">github.com/NailKarimov/go-testing</a> · as text: <code>docs/go.md</code> · <a href="coverage.html">coverage report</a>.</span>
+  </footer>
+</div>
+
+<script>
+const S = { lang: 'ru', fault: 'slow' };
+const L = (ru, en) => (S.lang === 'ru' ? ru : en);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const $ = (id) => document.getElementById(id);
+function chips(id, items, cur, key) {
+  $(id).innerHTML = items.map(([v, ru, en]) => `<button type="button" data-v="${v}" aria-pressed="${String(v) === String(cur)}">${L(ru, en)}</button>`).join('');
+  $(id).onclick = (e) => { const b = e.target.closest('button'); if (!b) return; S[key] = b.dataset.v; renderAll(); };
+}
+
+/* 01: each fault → attempts [label, class], user status, units reserved (with key / without key) */
+const FAULTS = {
+  none:  { name: ['Без сбоев', 'No fault'], att: [[['→ 201', 'ok']]], user: 201, with: 2, without: 2, note: ['Одна попытка, склад −2.', 'One attempt, stock −2.'] },
+  slow:  { name: ['Медленный ответ', 'Slow response'], att: [[['delay 300 ms', 'w'], ['timeout', 'bad'], ['…reserved anyway', 'w']], [['→ 201', 'ok']]], user: 201, with: 2, without: 4,
+           note: ['Первый запрос дошёл и списал товар, но ответ опоздал. Повтор с тем же ключом получает сохранённый ответ.', 'The first request arrived and reserved, but the answer was late. The retry with the same key gets the stored answer.'] },
+  e500:  { name: ['Два ответа 500', 'Two 500s'], att: [[['500', 'bad']], [['500', 'bad']], [['→ 201', 'ok']]], user: 201, with: 2, without: 2,
+           note: ['500 от прокси — запрос до склада не дошёл, поэтому ключ здесь ничего не меняет.', 'The proxy answered 500 without forwarding, so the key changes nothing here.'] },
+  e500x: { name: ['Три ответа 500', 'Three 500s'], att: [[['500', 'bad']], [['500', 'bad']], [['500', 'bad']]], user: 502, with: 0, without: 0,
+           note: ['Попытки кончились: пользователю 502, склад не тронут.', 'Out of attempts: the user gets 502, stock untouched.'] },
+  reset: { name: ['Обрыв после списания', 'Reset after reserving'], att: [[['forwarded', 'w'], ['reserved', 'w'], ['conn reset', 'bad']], [['→ 201', 'ok']]], user: 201, with: 2, without: 4,
+           note: ['Склад списал, но соединение оборвалось до ответа. Самый коварный случай: для клиента это обычная сетевая ошибка.', 'Inventory reserved, but the connection dropped before the answer. The nastiest case: to the client it is just a network error.'] },
+  hole:  { name: ['Чёрная дыра', 'Black hole'], att: [[['…', 'w'], ['timeout', 'bad']], [['…', 'w'], ['timeout', 'bad']], [['…', 'w'], ['timeout', 'bad']]], user: 502, with: 0, without: 0,
+           note: ['Ответа нет вовсе. Заказ падает за ≈ 0.5 с (3 × 150 мс + паузы), а не висит вечно.', 'No answer at all. The order fails in ≈ 0.5 s (3 × 150 ms + backoff) instead of hanging forever.'] },
+  down:  { name: ['Склад лежит', 'Inventory down'], att: [[['refused', 'bad']], [['refused', 'bad']], [['refused', 'bad']]], user: 502, with: 0, without: 0,
+           note: ['После 5 таких заказов предохранитель размыкается: шестой получает 503 мгновенно, и прокси не видит ни одного запроса. Это раздел 02.', 'After 5 such orders the breaker opens: the sixth gets 503 at once and the proxy sees no request. See section 02.'] },
+};
+function renderFault() {
+  chips('fault-chips', Object.entries(FAULTS).map(([k, f]) => [k, f.name[0], f.name[1]]), S.fault, 'fault');
+  const f = FAULTS[S.fault], nokey = $('nokey').checked;
+  $('lanes').innerHTML = f.att.map((a, i) => `<div class="lane"><b>${L('попытка', 'attempt')} ${i + 1}</b><div class="track">${a.map((s) => `<span class="${s[1]}">${esc(s[0])}</span>`).join('')}</div></div>`).join('');
+  const units = nokey ? f.without : f.with;
+  const bad = f.user === 201 && units !== 2;
+  const cls = bad ? 'bad' : f.user === 201 ? 'ok' : 'warn';
+  $('outcome').innerHTML = `<div class="state ${cls}"><b>${L('Пользователь', 'User')}: ${f.user}</b><span>${L('Склад списал', 'Inventory reserved')}: ${units} ${L('из заказанных 2', 'of the 2 ordered')}</span></div>` +
+    `<p class="muted">${bad ? L('Без ключа склад не может узнать повтор и выполняет его как новый заказ.', 'Without a key inventory cannot recognise the retry and runs it as a new order.') : L(...f.note)}</p>` +
+    (bad ? `<p><span class="tag bad">${L('ДВОЙНОЕ СПИСАНИЕ', 'RESERVED TWICE')}</span> ${L('Проверка «пользователь получил 201» проходит. Ловит только вторая половина теста — сколько списал склад.', 'The check "the user got 201" passes. Only the second half of the test, what inventory reserved, catches it.')}</p>` : '');
+}
+$('nokey').addEventListener('change', renderFault);
+
+/* 02: a live breaker */
+const B = { state: 'closed', fails: 0, t: 0, openedAt: 0, log: [] };
+function bkLog(m) { B.log.unshift(`t=${B.t}s  ${m}`); B.log = B.log.slice(0, 30); }
+function advance() { if (B.state === 'open' && B.t - B.openedAt >= 30) { B.state = 'half'; bkLog('cool-down over → half-open'); } }
+function bkAct(a) {
+  advance();
+  if (a === 'tick') { B.t += 10; bkLog(L('часы +10 с', 'clock +10 s')); advance(); }
+  else if (a === 'reset') { Object.assign(B, { state: 'closed', fails: 0, t: 0, openedAt: 0, log: [] }); }
+  else if (B.state === 'open') { bkLog(L('вызов не выполнен: ErrOpen → 503 за 0 мс', 'call skipped: ErrOpen → 503 in 0 ms')); }
+  else if (a === 'ok') { B.fails = 0; if (B.state === 'half') bkLog(L('пробный вызов успешен → closed', 'trial succeeded → closed')); else bkLog(L('успех, счётчик = 0', 'success, counter = 0')); B.state = 'closed'; }
+  else {
+    B.fails++;
+    if (B.state === 'half' || B.fails >= 5) { B.state = 'open'; B.openedAt = B.t; bkLog(L(`неудача ${B.fails} → open на 30 с`, `failure ${B.fails} → open for 30 s`)); }
+    else bkLog(L(`неудача ${B.fails} из 5`, `failure ${B.fails} of 5`));
+  }
+  renderBreaker();
+}
+function renderBreaker() {
+  document.querySelectorAll('#fsm span').forEach((s) => { s.className = s.dataset.s === B.state ? `on ${B.state}` : ''; });
+  const left = B.state === 'open' ? Math.max(0, 30 - (B.t - B.openedAt)) : 0;
+  $('bk-kv').innerHTML = `<span>${L('Неудач подряд', 'Failures in a row')}</span><b>${B.fails}</b><span>${L('Часы', 'Clock')}</span><b>${B.t} s</b><span>${L('До пробного вызова', 'Until the trial call')}</span><b>${B.state === 'open' ? left + ' s' : '—'}</b>`;
+  $('b-fail').textContent = L('вызов: ошибка', 'call: fails'); $('b-ok').textContent = L('вызов: успех', 'call: succeeds');
+  $('b-tick').textContent = L('часы +10 с', 'clock +10 s'); $('b-reset').textContent = L('сброс', 'reset');
+  $('bk-log').textContent = B.log.join('\n') || L('Нажмите «вызов: ошибка» пять раз.', 'Press "call: fails" five times.');
+}
+document.querySelector('.bk').addEventListener('click', (e) => { const b = e.target.closest('[data-a]'); if (b) bkAct(b.dataset.a); });
+
+const MUT = [
+  ['M1', ['повторы без Idempotency-Key', 'retries without the Idempotency-Key'], ['медленный ответ: списано дважды', 'slow response: reserved twice']],
+  ['M3', ['Reserve без мьютекса', 'Reserve without the mutex'], ['только race detector', 'only the race detector']],
+  ['M4', ['продажа на одну штуку больше остатка', 'oversell by one unit'], ['таблица валидации', 'validation table']],
+  ['M5', ['5xx не повторяются', '5xx not retried'], ['два ответа 500', 'two 500s']],
+  ['M7', ['нет таймаута попытки', 'no per-attempt timeout'], ['медленный ответ', 'slow response']],
+  ['M9', ['half-open пропускает всех', 'half-open lets everyone through'], ['ровно один пробный вызов', 'exactly one trial call']],
+  ['M10', ['предохранитель не восстанавливается', 'breaker never recovers'], ['поддельные часы +30 с', 'fake clock +30 s']],
+];
+function renderMut() { $('mut').innerHTML = MUT.map((m) => `<div class="item"><b>${m[0]}</b><span>${esc(L(...m[1]))}</span><span class="muted">${esc(L(...m[2]))} · ${L('пойман', 'caught')}</span></div>`).join('') + `<p class="muted">${L('Ещё 7 (ключ на стороне склада, сетевые ошибки, порог, лишние поля, лимит тела, 409 как 502, нулевое количество) — тоже пойманы: 14 из 14.', 'Seven more (key ignored by inventory, network errors, threshold, unknown fields, body limit, 409 as 502, zero quantity) are caught too: 14 of 14.')}</p>`; }
+
+const TERMS = [
+  ['idempotency key', ['Ключ запроса: повтор с тем же ключом получает сохранённый ответ, а не выполняется ещё раз. Делает повторы безопасными.', 'A request key: a repeat with the same key gets the stored answer instead of running again. It makes retries safe.']],
+  ['circuit breaker', ['После N неудач подряд перестаёт вызывать зависимость и сразу отвечает ошибкой; через паузу пропускает один пробный вызов.', 'After N failures in a row it stops calling the dependency and fails fast; after a pause it lets one trial call through.']],
+  ['-race', ['Детектор гонок Go: падает, если две горутины трогают одни данные без синхронизации, даже когда числа сошлись.', 'Go\'s race detector: fails when two goroutines touch the same data unsynchronised, even if the numbers added up.']],
+  ['go test -fuzz', ['Встроенный фаззинг: случайные входы, упавший сохраняется в testdata/fuzz и дальше проверяется как обычный тест.', 'Built-in fuzzing: random inputs; a failing one is saved to testdata/fuzz and replayed as an ordinary test from then on.']],
+];
+function renderTerms() { $('terms').innerHTML = TERMS.map((t) => `<div><dt>${esc(t[0])}</dt><dd>${L(...t[1])}</dd></div>`).join(''); }
+const CMDS = ['go test -race ./...', "go test ./inventory -run '^$' -fuzz FuzzParseReservation -fuzztime 30s", "go test -run '^$' -bench . -benchmem ./inventory", 'go run scripts/mutants.go'];
+function renderCmds() { $('cmds').innerHTML = CMDS.map((c, i) => `<div class="cmd"><code id="cmd-${i}">${esc(c)}</code><button type="button" data-c="${i}">${L('Копировать', 'Copy')}</button></div>`).join(''); }
+$('cmds').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-c]'); if (!b) return;
+  const done = () => { b.textContent = L('Скопировано', 'Copied'); setTimeout(() => (b.textContent = L('Копировать', 'Copy')), 1500); };
+  const fallback = () => { const r = document.createRange(); r.selectNodeContents($('cmd-' + b.dataset.c)); const s = getSelection(); s.removeAllRanges(); s.addRange(r); };
+  try { navigator.clipboard.writeText(CMDS[+b.dataset.c]).then(done, fallback); } catch (err) { fallback(); }
+});
+
+function renderAll() { renderFault(); renderBreaker(); renderMut(); renderTerms(); renderCmds(); }
+function setLang(l) {
+  S.lang = l; document.body.dataset.lang = l; document.documentElement.lang = l;
+  $('lang-ru').setAttribute('aria-pressed', l === 'ru');
+  $('lang-en').setAttribute('aria-pressed', l === 'en');
+  try { localStorage.setItem('go-lang', l); } catch (e) {}
+  renderAll();
+}
+document.querySelectorAll('.seg button').forEach((b) => b.addEventListener('click', () => setLang(b.dataset.l)));
+let start = document.documentElement.dataset.defaultLang || 'ru';
+try { start = localStorage.getItem('go-lang') || start; } catch (e) {}
+setLang(start);
+</script>
+</body>
+</html>
