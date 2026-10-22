@@ -5,17 +5,11 @@ on:
     branches: [main]
   pull_request:
   schedule:
-    - cron: '0 3 * * *' # nightly, 03:00 UTC
+    - cron: '0 4 * * *' # nightly, 04:00 UTC
   workflow_dispatch:
-    inputs:
-      project:
-        description: 'Which tests to run'
-        type: choice
-        options: [all, ui, api, smoke]
-        default: all
 
 permissions:
-  contents: write # publish the Allure report to the gh-pages branch
+  contents: write # publish the coverage report and the guide to the gh-pages branch
 
 concurrency:
   group: tests-${{ github.ref }}
@@ -24,75 +18,90 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-go@v5
         with:
-          node-version: 22
-          cache: npm
+          go-version-file: go.mod
 
-      - uses: actions/setup-java@v5 # Allure CLI needs Java
-        with:
-          distribution: temurin
-          java-version: 21
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
-
-      - name: Lint and type check
+      - name: Format and vet
         run: |
-          npm run lint
-          npm run format:check
-          npm run typecheck
+          test -z "$(gofmt -l .)" || { gofmt -l .; echo 'run gofmt -w .'; exit 1; }
+          go vet ./...
 
-      - name: Run tests
+      - name: Lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.1.6
+
+      - name: Tests with the race detector
         id: tests
         continue-on-error: true
-        env:
-          PROJECT: ${{ github.event.inputs.project || 'all' }}
         run: |
-          case "$PROJECT" in
-            ui)    npm run test:ui ;;
-            api)   npm run test:api ;;
-            smoke) npm run test:smoke ;;
-            *)     npm test ;;
-          esac
+          mkdir -p site
+          go test -race -count=1 -timeout 120s -v \
+            -coverpkg=./breaker,./chaos,./inventory,./orders -coverprofile=site/coverage.out ./... | tee site/tests.txt
+          exit "${PIPESTATUS[0]}"
 
-      - name: Restore Allure history
+      - name: Coverage report
         if: always()
         run: |
-          git fetch origin gh-pages --depth=1 || exit 0
-          git worktree add gh-pages-old origin/gh-pages || exit 0
-          if [ -d gh-pages-old/history ]; then
-            mkdir -p allure-results/history
-            cp -r gh-pages-old/history/. allure-results/history/
-          fi
+          go tool cover -html=site/coverage.out -o site/coverage.html
+          {
+            echo '### Coverage'
+            echo '```'
+            go tool cover -func=site/coverage.out
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Generate Allure report
+      - name: Benchmarks
         if: always()
-        run: npm run allure:generate
+        run: |
+          go test -run '^$' -bench . -benchmem ./... | tee site/bench.txt
+          { echo '### Benchmarks'; echo '```'; cat site/bench.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Publish Allure report to GitHub Pages
+      - name: Publish to GitHub Pages
         if: always() && github.ref == 'refs/heads/main'
-        uses: peaceiris/actions-gh-pages@v4
+        run: |
+          cp docs/*.html site/ 2>/dev/null || true
+          cp docs/go.html site/index.html
+      - uses: peaceiris/actions-gh-pages@v4
+        if: always() && github.ref == 'refs/heads/main'
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_branch: gh-pages
-          publish_dir: allure-report
-
-      - name: Upload Playwright report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-report
-          path: playwright-report
-          retention-days: 14
+          publish_dir: site
 
       - name: Fail the job if tests failed
         if: steps.tests.outcome == 'failure'
         run: exit 1
+
+  fuzz:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Fuzz the reservation parser for 60 s
+        run: go test ./inventory -run '^$' -fuzz FuzzParseReservation -fuzztime 60s
+      - name: Keep the failing input
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-crashers
+          path: inventory/testdata/fuzz
+
+  mutants:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Every planted bug must be caught
+        run: go run scripts/mutants.go | tee -a "$GITHUB_STEP_SUMMARY"
