@@ -73,7 +73,7 @@ func (r *rig) order(t *testing.T, qty int) (int, map[string]any) {
 	if err != nil {
 		t.Fatalf("POST /orders: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	var body map[string]any
 	_ = json.NewDecoder(resp.Body).Decode(&body)
 	return resp.StatusCode, body
@@ -229,7 +229,7 @@ func TestConcurrentOrdersUnderChaosStayConsistent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	var list []orders.Order
 	_ = json.NewDecoder(resp.Body).Decode(&list)
 	units := 0
@@ -251,7 +251,7 @@ func TestHealthShowsBreakerState(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	var body map[string]string
 	_ = json.NewDecoder(resp.Body).Decode(&body)
 	if body["breaker"] != "closed" {
@@ -266,7 +266,7 @@ func TestOrderValidation(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		if resp.StatusCode != 400 {
 			t.Errorf("%s: %d, want 400", body, resp.StatusCode)
 		}
@@ -282,7 +282,7 @@ func TestUnknownSkuIs422(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	if resp.StatusCode != 422 {
 		t.Fatalf("%d, want 422", resp.StatusCode)
 	}

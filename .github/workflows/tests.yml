@@ -31,11 +31,6 @@ jobs:
           test -z "$(gofmt -l .)" || { gofmt -l .; echo 'run gofmt -w .'; exit 1; }
           go vet ./...
 
-      - name: Lint
-        uses: golangci/golangci-lint-action@v8
-        with:
-          version: v2.1.6
-
       - name: Tests with the race detector
         id: tests
         continue-on-error: true
@@ -73,6 +68,12 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_branch: gh-pages
           publish_dir: site
+
+      - name: Lint
+        if: always()
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.1.6
 
       - name: Fail the job if tests failed
         if: steps.tests.outcome == 'failure'

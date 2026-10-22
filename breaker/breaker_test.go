@@ -9,7 +9,7 @@ import (
 	"github.com/NailKarimov/go-testing/breaker"
 )
 
-var boom = errors.New("boom")
+var errBoom = errors.New("errBoom")
 
 // clock is a fake time source: tests move it forward instead of sleeping.
 type clock struct{ t time.Time }
@@ -22,7 +22,7 @@ func newBreaker(c *clock) *breaker.Breaker {
 	return b
 }
 
-func fail() error { return boom }
+func fail() error { return errBoom }
 func ok() error   { return nil }
 
 func TestOpensAfterThresholdConsecutiveFailures(t *testing.T) {

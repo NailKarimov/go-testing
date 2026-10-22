@@ -96,7 +96,7 @@ func (s *Service) reserveOnce(ctx context.Context, key string, payload []byte) (
 	if err != nil {
 		return reply{}, errRetryable{err}
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	raw, err := io.ReadAll(io.LimitReader(resp.Body, 1<<16))
 	if err != nil {
 		return reply{}, errRetryable{err} // connection dropped mid-body
