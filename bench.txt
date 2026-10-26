@@ -7,9 +7,9 @@ goos: linux
 goarch: amd64
 pkg: github.com/NailKarimov/go-testing/inventory
 cpu: AMD EPYC 7763 64-Core Processor                
-BenchmarkReserve-4   	 1000000	      1063 ns/op	     576 B/op	       6 allocs/op
-BenchmarkHandler-4   	  208716	      5569 ns/op	    8290 B/op	      42 allocs/op
+BenchmarkReserve-4   	 1212482	       911.4 ns/op	     542 B/op	       6 allocs/op
+BenchmarkHandler-4   	  209342	      5484 ns/op	    8290 B/op	      42 allocs/op
 PASS
-ok  	github.com/NailKarimov/go-testing/inventory	2.252s
+ok  	github.com/NailKarimov/go-testing/inventory	2.285s
 PASS
 ok  	github.com/NailKarimov/go-testing/orders	0.004s
