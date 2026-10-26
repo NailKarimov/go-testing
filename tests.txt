@@ -12,7 +12,7 @@
 --- PASS: TestHalfOpenLetsOnlyOneTrialThrough (0.00s)
 PASS
 coverage: 13.1% of statements in ./breaker, ./chaos, ./inventory, ./orders
-ok  	github.com/NailKarimov/go-testing/breaker	1.010s	coverage: 13.1% of statements in ./breaker, ./chaos, ./inventory, ./orders
+ok  	github.com/NailKarimov/go-testing/breaker	1.019s	coverage: 13.1% of statements in ./breaker, ./chaos, ./inventory, ./orders
 	github.com/NailKarimov/go-testing/chaos		coverage: 0.0% of statements
 ?   	github.com/NailKarimov/go-testing/cmd/inventory	[no test files]
 ?   	github.com/NailKarimov/go-testing/cmd/orders	[no test files]
@@ -90,14 +90,14 @@ ok  	github.com/NailKarimov/go-testing/breaker	1.010s	coverage: 13.1% of stateme
     --- PASS: FuzzParseReservation/seed#9 (0.00s)
 PASS
 coverage: 24.6% of statements in ./breaker, ./chaos, ./inventory, ./orders
-ok  	github.com/NailKarimov/go-testing/inventory	1.014s	coverage: 24.6% of statements in ./breaker, ./chaos, ./inventory, ./orders
+ok  	github.com/NailKarimov/go-testing/inventory	1.024s	coverage: 24.6% of statements in ./breaker, ./chaos, ./inventory, ./orders
 === RUN   TestHappyPath
 --- PASS: TestHappyPath (0.00s)
 === RUN   TestBusinessAnswersAreNotRetried
 --- PASS: TestBusinessAnswersAreNotRetried (0.00s)
 === RUN   TestSlowResponseRetryDoesNotReserveTwice
-2026/10/25 09:00:48 http: proxy error: context canceled
---- PASS: TestSlowResponseRetryDoesNotReserveTwice (0.41s)
+2026/10/26 09:53:31 http: proxy error: context canceled
+--- PASS: TestSlowResponseRetryDoesNotReserveTwice (0.42s)
 === RUN   TestBurstOf500sIsRetriedThrough
 --- PASS: TestBurstOf500sIsRetriedThrough (0.03s)
 === RUN   TestMore500sThanAttemptsGiveBadGatewayAndNoReservation
@@ -105,18 +105,18 @@ ok  	github.com/NailKarimov/go-testing/inventory	1.014s	coverage: 24.6% of state
 === RUN   TestConnectionResetAfterReservationIsSafeToRetry
 --- PASS: TestConnectionResetAfterReservationIsSafeToRetry (0.01s)
 === RUN   TestBlackHoleIsBoundedByTimeouts
---- PASS: TestBlackHoleIsBoundedByTimeouts (0.48s)
+--- PASS: TestBlackHoleIsBoundedByTimeouts (0.49s)
 === RUN   TestBreakerOpensOnOutageAndRecovers
---- PASS: TestBreakerOpensOnOutageAndRecovers (0.16s)
+--- PASS: TestBreakerOpensOnOutageAndRecovers (0.17s)
 === RUN   TestConcurrentOrdersUnderChaosStayConsistent
     resilience_test.go:245: codes map[201:10 409:20], confirmed 10
---- PASS: TestConcurrentOrdersUnderChaosStayConsistent (0.03s)
+--- PASS: TestConcurrentOrdersUnderChaosStayConsistent (0.04s)
 === RUN   TestHealthShowsBreakerState
 --- PASS: TestHealthShowsBreakerState (0.00s)
 === RUN   TestOrderValidation
---- PASS: TestOrderValidation (0.01s)
+--- PASS: TestOrderValidation (0.00s)
 === RUN   TestUnknownSkuIs422
---- PASS: TestUnknownSkuIs422 (0.01s)
+--- PASS: TestUnknownSkuIs422 (0.00s)
 PASS
 coverage: 88.1% of statements in ./breaker, ./chaos, ./inventory, ./orders
-ok  	github.com/NailKarimov/go-testing/orders	2.204s	coverage: 88.1% of statements in ./breaker, ./chaos, ./inventory, ./orders
+ok  	github.com/NailKarimov/go-testing/orders	2.223s	coverage: 88.1% of statements in ./breaker, ./chaos, ./inventory, ./orders
