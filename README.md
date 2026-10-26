@@ -3,6 +3,7 @@
 [![Tests](https://github.com/NailKarimov/go-testing/actions/workflows/tests.yml/badge.svg)](https://github.com/NailKarimov/go-testing/actions/workflows/tests.yml)
 [![Report](https://img.shields.io/badge/report-coverage-blue)](https://nailkarimov.github.io/go-testing/coverage.html)
 [![Release](https://img.shields.io/github/v/release/NailKarimov/go-testing)](https://github.com/NailKarimov/go-testing/releases)
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/NailKarimov/go-testing?quickstart=1)
 
 ### ▶ Open online
 
@@ -47,6 +48,8 @@ inventory.
 - **A missing mutex is caught only by the race detector.** All the numbers still added up.
 
 ## Running it
+
+No local setup: the **Open in GitHub Codespaces** badge starts a browser VS Code with this repository, its tools and Docker; the container runs `go mod download` on creation, then `go test -race ./...` works in the terminal.
 
 Requirements: Go 1.24.
 
