@@ -2,6 +2,7 @@
 
 [![Tests](https://github.com/NailKarimov/go-testing/actions/workflows/tests.yml/badge.svg)](https://github.com/NailKarimov/go-testing/actions/workflows/tests.yml)
 [![Report](https://img.shields.io/badge/report-coverage-blue)](https://nailkarimov.github.io/go-testing/coverage.html)
+[![Release](https://img.shields.io/github/v/release/NailKarimov/go-testing)](https://github.com/NailKarimov/go-testing/releases)
 
 ### ▶ Open online
 
@@ -79,6 +80,8 @@ docs/             test plan, test report, guides
 - the `mutants` job runs the mutation check.
 
 The coverage report and the guide are published on GitHub Pages.
+
+Releases: committing `.github/releases/<tag>.md` runs the Release workflow, which creates the tag and the GitHub release with that file as its notes.
 
 ## Documentation
 
