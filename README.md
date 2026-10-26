@@ -3,6 +3,15 @@
 [![Tests](https://github.com/NailKarimov/go-testing/actions/workflows/tests.yml/badge.svg)](https://github.com/NailKarimov/go-testing/actions/workflows/tests.yml)
 [![Report](https://img.shields.io/badge/report-coverage-blue)](https://nailkarimov.github.io/go-testing/coverage.html)
 
+### ▶ Open online
+
+| Page | What it is |
+| --- | --- |
+| **[Go resilience tests](https://nailkarimov.github.io/go-testing/go.html)** | interactive guide |
+| [Coverage report](https://nailkarimov.github.io/go-testing/coverage.html) | latest CI run |
+
+Click these links: opening an `.html` file in the file list shows its source code, GitHub does not run it.
+
 Resilience and concurrency tests **in Go**, on two microservices of our own written with the standard library
 only. `orders` calls `inventory` over HTTP through a **fault-injecting proxy**, which adds latency, answers 500,
 drops connections or swallows requests. Each test checks what the user saw *and* what really happened in
