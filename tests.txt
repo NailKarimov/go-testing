@@ -12,7 +12,7 @@
 --- PASS: TestHalfOpenLetsOnlyOneTrialThrough (0.00s)
 PASS
 coverage: 13.1% of statements in ./breaker, ./chaos, ./inventory, ./orders
-ok  	github.com/NailKarimov/go-testing/breaker	1.015s	coverage: 13.1% of statements in ./breaker, ./chaos, ./inventory, ./orders
+ok  	github.com/NailKarimov/go-testing/breaker	1.014s	coverage: 13.1% of statements in ./breaker, ./chaos, ./inventory, ./orders
 	github.com/NailKarimov/go-testing/chaos		coverage: 0.0% of statements
 ?   	github.com/NailKarimov/go-testing/cmd/inventory	[no test files]
 ?   	github.com/NailKarimov/go-testing/cmd/orders	[no test files]
@@ -40,7 +40,7 @@ ok  	github.com/NailKarimov/go-testing/breaker	1.015s	coverage: 13.1% of stateme
 === RUN   TestReserveValidation/not_JSON
 === RUN   TestReserveValidation/empty_body
 === RUN   TestReserveValidation/body_over_4_KB
---- PASS: TestReserveValidation (0.01s)
+--- PASS: TestReserveValidation (0.00s)
     --- PASS: TestReserveValidation/valid (0.00s)
     --- PASS: TestReserveValidation/exactly_the_stock (0.00s)
     --- PASS: TestReserveValidation/more_than_the_stock (0.00s)
@@ -65,7 +65,7 @@ ok  	github.com/NailKarimov/go-testing/breaker	1.015s	coverage: 13.1% of stateme
 === RUN   TestIdempotencyKeyRemembersARefusal
 --- PASS: TestIdempotencyKeyRemembersARefusal (0.00s)
 === RUN   TestConcurrentReservationsNeverOversell
---- PASS: TestConcurrentReservationsNeverOversell (0.01s)
+--- PASS: TestConcurrentReservationsNeverOversell (0.00s)
 === RUN   FuzzParseReservation
 === RUN   FuzzParseReservation/seed#0
 === RUN   FuzzParseReservation/seed#1
@@ -90,14 +90,14 @@ ok  	github.com/NailKarimov/go-testing/breaker	1.015s	coverage: 13.1% of stateme
     --- PASS: FuzzParseReservation/seed#9 (0.00s)
 PASS
 coverage: 24.6% of statements in ./breaker, ./chaos, ./inventory, ./orders
-ok  	github.com/NailKarimov/go-testing/inventory	1.030s	coverage: 24.6% of statements in ./breaker, ./chaos, ./inventory, ./orders
+ok  	github.com/NailKarimov/go-testing/inventory	1.032s	coverage: 24.6% of statements in ./breaker, ./chaos, ./inventory, ./orders
 === RUN   TestHappyPath
 --- PASS: TestHappyPath (0.00s)
 === RUN   TestBusinessAnswersAreNotRetried
 --- PASS: TestBusinessAnswersAreNotRetried (0.00s)
 === RUN   TestSlowResponseRetryDoesNotReserveTwice
-2026/10/26 15:24:23 http: proxy error: context canceled
---- PASS: TestSlowResponseRetryDoesNotReserveTwice (0.41s)
+2026/10/27 09:40:30 http: proxy error: context canceled
+--- PASS: TestSlowResponseRetryDoesNotReserveTwice (0.42s)
 === RUN   TestBurstOf500sIsRetriedThrough
 --- PASS: TestBurstOf500sIsRetriedThrough (0.03s)
 === RUN   TestMore500sThanAttemptsGiveBadGatewayAndNoReservation
@@ -119,4 +119,4 @@ ok  	github.com/NailKarimov/go-testing/inventory	1.030s	coverage: 24.6% of state
 --- PASS: TestUnknownSkuIs422 (0.00s)
 PASS
 coverage: 88.1% of statements in ./breaker, ./chaos, ./inventory, ./orders
-ok  	github.com/NailKarimov/go-testing/orders	2.208s	coverage: 88.1% of statements in ./breaker, ./chaos, ./inventory, ./orders
+ok  	github.com/NailKarimov/go-testing/orders	2.213s	coverage: 88.1% of statements in ./breaker, ./chaos, ./inventory, ./orders
