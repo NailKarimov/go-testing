@@ -12,7 +12,7 @@
 --- PASS: TestHalfOpenLetsOnlyOneTrialThrough (0.00s)
 PASS
 coverage: 13.1% of statements in ./breaker, ./chaos, ./inventory, ./orders
-ok  	github.com/NailKarimov/go-testing/breaker	1.015s	coverage: 13.1% of statements in ./breaker, ./chaos, ./inventory, ./orders
+ok  	github.com/NailKarimov/go-testing/breaker	1.013s	coverage: 13.1% of statements in ./breaker, ./chaos, ./inventory, ./orders
 	github.com/NailKarimov/go-testing/chaos		coverage: 0.0% of statements
 ?   	github.com/NailKarimov/go-testing/cmd/inventory	[no test files]
 ?   	github.com/NailKarimov/go-testing/cmd/orders	[no test files]
@@ -90,13 +90,13 @@ ok  	github.com/NailKarimov/go-testing/breaker	1.015s	coverage: 13.1% of stateme
     --- PASS: FuzzParseReservation/seed#9 (0.00s)
 PASS
 coverage: 24.6% of statements in ./breaker, ./chaos, ./inventory, ./orders
-ok  	github.com/NailKarimov/go-testing/inventory	1.026s	coverage: 24.6% of statements in ./breaker, ./chaos, ./inventory, ./orders
+ok  	github.com/NailKarimov/go-testing/inventory	1.021s	coverage: 24.6% of statements in ./breaker, ./chaos, ./inventory, ./orders
 === RUN   TestHappyPath
 --- PASS: TestHappyPath (0.00s)
 === RUN   TestBusinessAnswersAreNotRetried
 --- PASS: TestBusinessAnswersAreNotRetried (0.00s)
 === RUN   TestSlowResponseRetryDoesNotReserveTwice
-2026/10/28 10:25:23 http: proxy error: context canceled
+2026/10/29 10:45:18 http: proxy error: context canceled
 --- PASS: TestSlowResponseRetryDoesNotReserveTwice (0.41s)
 === RUN   TestBurstOf500sIsRetriedThrough
 --- PASS: TestBurstOf500sIsRetriedThrough (0.03s)
@@ -110,7 +110,7 @@ ok  	github.com/NailKarimov/go-testing/inventory	1.026s	coverage: 24.6% of state
 --- PASS: TestBreakerOpensOnOutageAndRecovers (0.16s)
 === RUN   TestConcurrentOrdersUnderChaosStayConsistent
     resilience_test.go:245: codes map[201:10 409:20], confirmed 10
---- PASS: TestConcurrentOrdersUnderChaosStayConsistent (0.03s)
+--- PASS: TestConcurrentOrdersUnderChaosStayConsistent (0.02s)
 === RUN   TestHealthShowsBreakerState
 --- PASS: TestHealthShowsBreakerState (0.00s)
 === RUN   TestOrderValidation
@@ -119,4 +119,4 @@ ok  	github.com/NailKarimov/go-testing/inventory	1.026s	coverage: 24.6% of state
 --- PASS: TestUnknownSkuIs422 (0.00s)
 PASS
 coverage: 88.1% of statements in ./breaker, ./chaos, ./inventory, ./orders
-ok  	github.com/NailKarimov/go-testing/orders	2.197s	coverage: 88.1% of statements in ./breaker, ./chaos, ./inventory, ./orders
+ok  	github.com/NailKarimov/go-testing/orders	2.181s	coverage: 88.1% of statements in ./breaker, ./chaos, ./inventory, ./orders
