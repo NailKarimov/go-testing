@@ -544,7 +544,7 @@ type reply struct {
         body   map[string]any
 }
 
-func (s *Service) reserveOnce(ctx context.Context, key string, payload []byte) (reply, error) <span class="cov10" title="72">{
+func (s *Service) reserveOnce(ctx context.Context, key string, payload []byte) (reply, error) <span class="cov10" title="74">{
         s.Attempts.Add(1)
         ctx, cancel := context.WithTimeout(ctx, s.cfg.Timeout)
         defer cancel()
@@ -552,10 +552,10 @@ func (s *Service) reserveOnce(ctx context.Context, key string, payload []byte) (
         if err != nil </span><span class="cov0" title="0">{
                 return reply{}, err
         }</span>
-        <span class="cov10" title="72">req.Header.Set("Content-Type", "application/json")
+        <span class="cov10" title="74">req.Header.Set("Content-Type", "application/json")
         req.Header.Set("Idempotency-Key", key)
         resp, err := s.cfg.Client.Do(req)
-        if err != nil </span><span class="cov7" title="24">{
+        if err != nil </span><span class="cov7" title="26">{
                 return reply{}, errRetryable{err}
         }</span>
         <span class="cov9" title="48">defer func() </span><span class="cov9" title="48">{ _ = resp.Body.Close() }</span>()
@@ -574,26 +574,26 @@ func (s *Service) reserveOnce(ctx context.Context, key string, payload []byte) (
 }
 
 // reserve calls inventory through the breaker with retries. Every attempt carries the same idempotency key.
-func (s *Service) reserve(ctx context.Context, key string, payload []byte) (reply, error) <span class="cov9" title="45">{
+func (s *Service) reserve(ctx context.Context, key string, payload []byte) (reply, error) <span class="cov8" title="45">{
         var out reply
         err := s.cfg.Breaker.Do(func() error </span><span class="cov8" title="44">{
                 wait := s.cfg.Backoff
                 var last error
-                for i := 0; i &lt; s.cfg.Attempts; i++ </span><span class="cov10" title="72">{
-                        if i &gt; 0 </span><span class="cov8" title="28">{
+                for i := 0; i &lt; s.cfg.Attempts; i++ </span><span class="cov10" title="74">{
+                        if i &gt; 0 </span><span class="cov8" title="30">{
                                 select </span>{
-                                case &lt;-time.After(wait):<span class="cov8" title="28"></span>
+                                case &lt;-time.After(wait):<span class="cov8" title="30"></span>
                                 case &lt;-ctx.Done():<span class="cov0" title="0">
                                         return ctx.Err()</span>
                                 }
-                                <span class="cov8" title="28">wait *= 2</span>
+                                <span class="cov8" title="30">wait *= 2</span>
                         }
-                        <span class="cov10" title="72">r, err := s.reserveOnce(ctx, key, payload)
+                        <span class="cov10" title="74">r, err := s.reserveOnce(ctx, key, payload)
                         if err == nil </span><span class="cov8" title="37">{
                                 out = r
                                 return nil
                         }</span>
-                        <span class="cov8" title="35">last = err
+                        <span class="cov8" title="37">last = err
                         var re errRetryable
                         if !errors.As(err, &amp;re) </span><span class="cov0" title="0">{
                                 return err
@@ -601,7 +601,7 @@ func (s *Service) reserve(ctx context.Context, key string, payload []byte) (repl
                 }
                 <span class="cov5" title="7">return last</span>
         })
-        <span class="cov9" title="45">return out, err</span>
+        <span class="cov8" title="45">return out, err</span>
 }
 
 // Handler serves POST /orders and GET /orders.
@@ -618,7 +618,7 @@ func (s *Service) Handler() http.Handler <span class="cov6" title="12">{
                         writeJSON(w, http.StatusBadRequest, map[string]string{"error": "sku and quantity 1-100 are required"})
                         return
                 }</span>
-                <span class="cov9" title="45">id := int(s.nextID.Add(1))
+                <span class="cov8" title="45">id := int(s.nextID.Add(1))
                 payload, _ := json.Marshal(in)
                 res, err := s.reserve(r.Context(), "order-"+strconv.Itoa(id), payload)
                 switch </span>{
