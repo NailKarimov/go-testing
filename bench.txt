@@ -1,5 +1,5 @@
 PASS
-ok  	github.com/NailKarimov/go-testing/breaker	0.006s
+ok  	github.com/NailKarimov/go-testing/breaker	0.008s
 ?   	github.com/NailKarimov/go-testing/chaos	[no test files]
 ?   	github.com/NailKarimov/go-testing/cmd/inventory	[no test files]
 ?   	github.com/NailKarimov/go-testing/cmd/orders	[no test files]
@@ -7,9 +7,9 @@ goos: linux
 goarch: amd64
 pkg: github.com/NailKarimov/go-testing/inventory
 cpu: AMD EPYC 7763 64-Core Processor                
-BenchmarkReserve-4   	 1000000	      1150 ns/op	     577 B/op	       6 allocs/op
-BenchmarkHandler-4   	  189456	      5413 ns/op	    8290 B/op	      42 allocs/op
+BenchmarkReserve-4   	 1000000	      1170 ns/op	     576 B/op	       6 allocs/op
+BenchmarkHandler-4   	  215998	      5514 ns/op	    8290 B/op	      42 allocs/op
 PASS
-ok  	github.com/NailKarimov/go-testing/inventory	2.201s
+ok  	github.com/NailKarimov/go-testing/inventory	2.446s
 PASS
 ok  	github.com/NailKarimov/go-testing/orders	0.004s
