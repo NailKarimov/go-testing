@@ -6,10 +6,10 @@ ok  	github.com/NailKarimov/go-testing/breaker	0.010s
 goos: linux
 goarch: amd64
 pkg: github.com/NailKarimov/go-testing/inventory
-cpu: AMD EPYC 7763 64-Core Processor                
-BenchmarkReserve-4   	 1000000	      1149 ns/op	     577 B/op	       6 allocs/op
-BenchmarkHandler-4   	  223440	      5340 ns/op	    8290 B/op	      42 allocs/op
+cpu: Intel(R) Xeon(R) 6975P-C
+BenchmarkReserve-4   	 1226323	       892.4 ns/op	     540 B/op	       6 allocs/op
+BenchmarkHandler-4   	  253951	      3967 ns/op	    8290 B/op	      42 allocs/op
 PASS
-ok  	github.com/NailKarimov/go-testing/inventory	2.523s
+ok  	github.com/NailKarimov/go-testing/inventory	2.140s
 PASS
-ok  	github.com/NailKarimov/go-testing/orders	0.004s
+ok  	github.com/NailKarimov/go-testing/orders	0.003s
